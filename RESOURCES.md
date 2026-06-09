@@ -8,6 +8,8 @@
   The only reference allowed during the exam. Use for: all concept learning, manifest syntax, and building exam-day muscle memory navigating these docs.
 - [CKAD Exercises — dgkanatsios (GitHub)](https://github.com/dgkanatsios/CKAD-exercises)
   Community-maintained exercise set organized by curriculum domain. Use for: targeted practice on specific topics.
+- [KodeKloud CKAD Course](https://kodekloud.com/courses/certified-kubernetes-application-developer-ckad/)
+  Structured video course with browser-based hands-on labs. Provided via L&D subscription (1 year). Use for: guided learning with interactive practice environments, mock exams, and topic-specific labs.
 - [killer.sh CKAD Simulator](https://killer.sh)
   Exam-realistic simulator (2 sessions included with exam purchase). Use for: final preparation only — save for 2-3 weeks before exam date.
 - [kind — Quick Start](https://kind.sigs.k8s.io/docs/user/quick-start/)
@@ -18,7 +20,6 @@
 ## Gaps
 
 - No video course identified yet — may add if reading-only approach proves insufficient
-- No structured practice lab platform (e.g. KodeKloud, KillerCoda) — evaluate if needed
 
 ## Wisdom (Communities)
 

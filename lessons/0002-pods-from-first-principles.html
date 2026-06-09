@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lesson 002 — Pods from First Principles</title>
+    <style>
+        :root {
+            --bg: #fafafa;
+            --text: #1a1a1a;
+            --accent: #326ce5;
+            --code-bg: #f0f0f0;
+            --border: #ddd;
+            --success: #2e7d32;
+            --warning: #ef6c00;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.7;
+            color: var(--text);
+            background: var(--bg);
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        h1 { font-size: 1.8rem; margin-bottom: 0.5rem; color: var(--accent); }
+        h2 { font-size: 1.3rem; margin-top: 2rem; margin-bottom: 0.75rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.25rem; }
+        h3 { font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        p { margin-bottom: 1rem; }
+        code {
+            background: var(--code-bg);
+            padding: 0.15em 0.4em;
+            border-radius: 3px;
+            font-size: 0.9em;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1rem 1.25rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        .meta { color: #666; font-size: 0.9rem; margin-bottom: 2rem; }
+        .step {
+            background: white;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent);
+            padding: 1rem 1.25rem;
+            margin-bottom: 1rem;
+            border-radius: 0 6px 6px 0;
+        }
+        .step-number {
+            font-weight: 700;
+            color: var(--accent);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+        }
+        .checkpoint {
+            background: #e8f5e9;
+            border: 1px solid #a5d6a7;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1rem 0;
+        }
+        .checkpoint::before {
+            content: "✓ Checkpoint";
+            display: block;
+            font-weight: 700;
+            color: var(--success);
+            margin-bottom: 0.25rem;
+            font-size: 0.85rem;
+        }
+        .exam-tip {
+            background: #fff3e0;
+            border: 1px solid #ffcc02;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1rem 0;
+        }
+        .exam-tip::before {
+            content: "Exam Tip";
+            display: block;
+            font-weight: 700;
+            color: var(--warning);
+            margin-bottom: 0.25rem;
+            font-size: 0.85rem;
+        }
+        .why {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1rem 0;
+        }
+        .why::before {
+            content: "Why this matters";
+            display: block;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 0.25rem;
+            font-size: 0.85rem;
+        }
+        .exercise {
+            background: #f3e5f5;
+            border: 1px solid #ce93d8;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1.5rem 0;
+        }
+        .exercise::before {
+            content: "Practice Exercise";
+            display: block;
+            font-weight: 700;
+            color: #7b1fa2;
+            margin-bottom: 0.25rem;
+            font-size: 0.85rem;
+        }
+        .anatomy {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1rem 0;
+        }
+        .field-name { color: #c586c0; font-weight: 600; }
+        .field-desc { color: #666; font-size: 0.9rem; }
+        ul, ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+        li { margin-bottom: 0.35rem; }
+        a { color: var(--accent); }
+        details { margin-bottom: 1rem; }
+        details summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--accent);
+            padding: 0.5rem 0;
+        }
+        .nav { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
+        @media print {
+            body { max-width: 100%; padding: 1rem; }
+            pre { white-space: pre-wrap; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Pods from First Principles</h1>
+    <p class="meta">Lesson 002 · Estimated time: 30 minutes · Domain: Application Design and Build (20%)</p>
+
+    <div class="why">
+        <p>Every workload in Kubernetes runs inside a Pod. Deployments, Jobs, DaemonSets — they all create Pods. If you understand the Pod spec, you understand the building block that everything else wraps. The exam will test whether you can write and modify Pod manifests quickly and correctly.</p>
+    </div>
+
+    <h2>What is a Pod, really?</h2>
+    <p>A Pod is <strong>one or more containers that share a network namespace and storage</strong>. That's the core idea.</p>
+    <p>What "share a network namespace" means concretely:</p>
+    <ul>
+        <li>All containers in a Pod share the same IP address</li>
+        <li>Containers in the same Pod can reach each other via <code>localhost</code></li>
+        <li>Port conflicts happen <em>within</em> a Pod (two containers can't both use port 80)</li>
+    </ul>
+    <p>Think of a Pod as a tiny machine. The containers inside it are processes on that machine.</p>
+
+    <h2>The Pod manifest — anatomy</h2>
+    <p>When you ran <code>k run nginx --image=nginx</code>, Kubernetes generated a full Pod spec. Let's look at what a minimal Pod manifest looks like when you write it yourself:</p>
+
+    <pre><code>apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.27
+    ports:
+    - containerPort: 80</code></pre>
+
+    <div class="anatomy">
+        <h3>Every field explained</h3>
+        <p><span class="field-name">apiVersion: v1</span><br>
+        <span class="field-desc">Pods are part of the core API group, so it's just <code>v1</code>. No group prefix needed.</span></p>
+
+        <p><span class="field-name">kind: Pod</span><br>
+        <span class="field-desc">The resource type. Case-sensitive — always capital P.</span></p>
+
+        <p><span class="field-name">metadata.name</span><br>
+        <span class="field-desc">Unique identifier within the namespace. Must be a valid DNS subdomain (lowercase, hyphens OK, no underscores).</span></p>
+
+        <p><span class="field-name">metadata.labels</span><br>
+        <span class="field-desc">Key-value pairs used for selection. Services and Deployments find Pods by label. Not required for bare Pods, but always good practice.</span></p>
+
+        <p><span class="field-name">spec.containers[]</span><br>
+        <span class="field-desc">Array of containers. At minimum: <code>name</code> and <code>image</code>. The name is how you reference the container in logs, exec, etc.</span></p>
+
+        <p><span class="field-name">spec.containers[].ports[].containerPort</span><br>
+        <span class="field-desc">Informational — declares what port the container listens on. Doesn't actually open anything (unlike Docker's <code>-p</code>). Useful for documentation and for Services to know where to send traffic.</span></p>
+    </div>
+
+    <h2>The imperative shortcut — and its limits</h2>
+    <p>You already know <code>k run nginx --image=nginx</code> creates a Pod. But the exam often requires modifications that imperative commands can't express. The power move is:</p>
+
+    <pre><code># Generate the YAML without creating the pod
+k run nginx --image=nginx --dry-run=client -o yaml > pod.yaml
+
+# Edit it to add what you need
+vim pod.yaml
+
+# Apply it
+k apply -f pod.yaml</code></pre>
+
+    <div class="exam-tip">
+        <p><code>--dry-run=client -o yaml</code> is your best friend in the exam. It generates correct boilerplate instantly. You then tweak only what the question asks for. This is faster than writing YAML from scratch, and less error-prone.</p>
+    </div>
+
+    <h2>Common Pod spec fields (exam-relevant)</h2>
+    <p>Beyond the minimum, here are the fields you'll need most often:</p>
+
+    <pre><code>apiVersion: v1
+kind: Pod
+metadata:
+  name: app
+  labels:
+    app: myapp
+spec:
+  restartPolicy: Always          # Always | OnFailure | Never
+  containers:
+  - name: app
+    image: busybox:1.36
+    command: ["sh", "-c"]        # Override entrypoint
+    args: ["echo hello && sleep 3600"]  # Override CMD
+    env:
+    - name: MY_VAR
+      value: "hello"
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "250m"
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+    ports:
+    - containerPort: 8080</code></pre>
+
+    <div class="anatomy">
+        <p><span class="field-name">restartPolicy</span><br>
+        <span class="field-desc"><code>Always</code> (default) — restarts container if it exits for any reason. <code>OnFailure</code> — only restarts on non-zero exit. <code>Never</code> — no restart. Jobs use <code>OnFailure</code> or <code>Never</code>.</span></p>
+
+        <p><span class="field-name">command</span><br>
+        <span class="field-desc">Overrides the container image's ENTRYPOINT. Note: it's an array, not a string.</span></p>
+
+        <p><span class="field-name">args</span><br>
+        <span class="field-desc">Overrides the container image's CMD. Also an array.</span></p>
+
+        <p><span class="field-name">env</span><br>
+        <span class="field-desc">Environment variables. Can also pull from ConfigMaps and Secrets (covered in a later lesson).</span></p>
+
+        <p><span class="field-name">resources.requests</span><br>
+        <span class="field-desc">What the scheduler uses to place the Pod. "I need at least this much."</span></p>
+
+        <p><span class="field-name">resources.limits</span><br>
+        <span class="field-desc">Hard ceiling. Container gets OOMKilled if it exceeds memory limit.</span></p>
+    </div>
+
+    <h2>Hands-on practice</h2>
+    <p>Make sure your cluster is running (<code>kind create cluster --name ckad-practice</code> if needed).</p>
+
+    <div class="exercise">
+        <p><strong>Exercise 1:</strong> Generate a Pod manifest for an <code>alpine:3.19</code> container named <code>sleeper</code> that runs the command <code>sleep 3600</code>. Don't create it yet — just generate the YAML.</p>
+        <details>
+            <summary>Hint</summary>
+            <pre><code>k run sleeper --image=alpine:3.19 --dry-run=client -o yaml -- sleep 3600</code></pre>
+        </details>
+        <details>
+            <summary>Solution</summary>
+            <pre><code>k run sleeper --image=alpine:3.19 --dry-run=client -o yaml -- sleep 3600 > sleeper.yaml
+cat sleeper.yaml</code></pre>
+            <p>The <code>--</code> separates kubectl flags from the container command. Everything after <code>--</code> becomes the container's <code>args</code>.</p>
+        </details>
+    </div>
+
+    <div class="exercise">
+        <p><strong>Exercise 2:</strong> Write a Pod manifest from scratch (no <code>--dry-run</code>) for a pod named <code>web</code> running <code>nginx:1.27</code> with these requirements:</p>
+        <ul>
+            <li>Label: <code>tier: frontend</code></li>
+            <li>Resource request: 64Mi memory, 100m CPU</li>
+            <li>Resource limit: 128Mi memory, 200m CPU</li>
+            <li>Container port: 80</li>
+        </ul>
+        <p>Apply it and verify it's running.</p>
+        <details>
+            <summary>Solution</summary>
+            <pre><code>cat &lt;&lt;EOF | k apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web
+  labels:
+    tier: frontend
+spec:
+  containers:
+  - name: web
+    image: nginx:1.27
+    ports:
+    - containerPort: 80
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "100m"
+      limits:
+        memory: "128Mi"
+        cpu: "200m"
+EOF</code></pre>
+            <p>Verify: <code>k get pod web</code> — should show STATUS: Running within a few seconds.</p>
+        </details>
+    </div>
+
+    <div class="exercise">
+        <p><strong>Exercise 3:</strong> Create a pod named <code>envpod</code> using <code>busybox:1.36</code> that:</p>
+        <ul>
+            <li>Sets an environment variable <code>GREETING=hello-ckad</code></li>
+            <li>Runs the command: <code>echo $GREETING && sleep 3600</code></li>
+        </ul>
+        <p>After creating it, verify the env var works by running:</p>
+        <pre><code>k exec envpod -- env | grep GREETING</code></pre>
+        <details>
+            <summary>Solution</summary>
+            <pre><code>cat &lt;&lt;EOF | k apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: envpod
+spec:
+  containers:
+  - name: envpod
+    image: busybox:1.36
+    command: ["sh", "-c"]
+    args: ["echo $GREETING && sleep 3600"]
+    env:
+    - name: GREETING
+      value: "hello-ckad"
+EOF</code></pre>
+            <p>Then: <code>k exec envpod -- env | grep GREETING</code> should output <code>GREETING=hello-ckad</code></p>
+        </details>
+    </div>
+
+    <div class="checkpoint">
+        <p>If you completed all three exercises, you can now write Pod manifests from memory. You understand the core fields: <code>metadata</code>, <code>spec.containers</code>, <code>command/args</code>, <code>env</code>, <code>resources</code>, and <code>ports</code>.</p>
+    </div>
+
+    <h2>Key mental models</h2>
+    <ul>
+        <li><strong>Pod = shared network + shared storage.</strong> Containers in a Pod are like processes on one machine.</li>
+        <li><strong>Imperative for speed, declarative for correctness.</strong> Use <code>k run ... --dry-run=client -o yaml</code> to generate, then edit.</li>
+        <li><strong>command overrides ENTRYPOINT, args overrides CMD.</strong> If you set <code>command</code>, the image's CMD is ignored entirely unless you also set <code>args</code>.</li>
+        <li><strong>Requests = scheduling, Limits = enforcement.</strong> A Pod with requests but no limits can use more than it asked for (until the node runs low).</li>
+    </ul>
+
+    <h2>What's next</h2>
+    <p>Now that you understand the Pod spec, the next lesson covers <strong>multi-container Pods</strong> — init containers and sidecars. These are a common exam topic and build directly on what you learned here.</p>
+
+    <p>See also: <a href="../reference/ckad-exam-domains.html">CKAD Exam Domains Reference</a> · <a href="0001-setting-up-practice-environment.html">Lesson 001 — Environment Setup</a></p>
+
+    <div class="nav">
+        <p>Questions? Stuck on an exercise? Ask your agent — I can explain any concept or help debug.</p>
+        <p>Next: <a href="0003-multi-container-pods.html">Lesson 003 — Multi-Container Pods</a></p>
+    </div>
+</body>
+</html>
