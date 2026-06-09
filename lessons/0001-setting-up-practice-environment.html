@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lesson 001 — Setting Up Your CKAD Practice Environment</title>
+    <style>
+        :root {
+            --bg: #fafafa;
+            --text: #1a1a1a;
+            --accent: #326ce5;
+            --code-bg: #f0f0f0;
+            --border: #ddd;
+            --success: #2e7d32;
+            --warning: #ef6c00;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.7;
+            color: var(--text);
+            background: var(--bg);
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+        h1 { font-size: 1.8rem; margin-bottom: 0.5rem; color: var(--accent); }
+        h2 { font-size: 1.3rem; margin-top: 2rem; margin-bottom: 0.75rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.25rem; }
+        h3 { font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        p { margin-bottom: 1rem; }
+        code {
+            background: var(--code-bg);
+            padding: 0.15em 0.4em;
+            border-radius: 3px;
+            font-size: 0.9em;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1rem 1.25rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        .meta { color: #666; font-size: 0.9rem; margin-bottom: 2rem; }
+        .step {
+            background: white;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent);
+            padding: 1rem 1.25rem;
+            margin-bottom: 1rem;
+            border-radius: 0 6px 6px 0;
+        }
+        .step-number {
+            font-weight: 700;
+            color: var(--accent);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+        }
+        .checkpoint {
+            background: #e8f5e9;
+            border: 1px solid #a5d6a7;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1rem 0;
+        }
+        .checkpoint::before {
+            content: "✓ Checkpoint";
+            display: block;
+            font-weight: 700;
+            color: var(--success);
+            margin-bottom: 0.25rem;
+            font-size: 0.85rem;
+        }
+        .exam-tip {
+            background: #fff3e0;
+            border: 1px solid #ffcc02;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1rem 0;
+        }
+        .exam-tip::before {
+            content: "Exam Tip";
+            display: block;
+            font-weight: 700;
+            color: var(--warning);
+            margin-bottom: 0.25rem;
+            font-size: 0.85rem;
+        }
+        .why {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1rem 0;
+        }
+        .why::before {
+            content: "Why this matters";
+            display: block;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 0.25rem;
+            font-size: 0.85rem;
+        }
+        ul, ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+        li { margin-bottom: 0.35rem; }
+        a { color: var(--accent); }
+        .nav { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
+        @media print {
+            body { max-width: 100%; padding: 1rem; }
+            pre { white-space: pre-wrap; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Setting Up Your CKAD Practice Environment</h1>
+    <p class="meta">Lesson 001 · Estimated time: 20 minutes · Domain: Exam Preparation</p>
+
+    <div class="why">
+        <p>The CKAD exam is 100% hands-on — you solve problems in a real terminal connected to real clusters. There's no multiple choice. You need a local cluster you can create, destroy, and recreate freely so you can practice daily without cost or friction.</p>
+    </div>
+
+    <h2>What you'll set up</h2>
+    <ul>
+        <li><strong>Docker Desktop</strong> — container runtime (you may already have this)</li>
+        <li><strong>kind</strong> — spins up Kubernetes clusters inside Docker containers</li>
+        <li><strong>kubectl</strong> — the CLI you'll use in the actual exam</li>
+        <li><strong>kubectl aliases</strong> — speed shortcuts for the exam</li>
+    </ul>
+
+    <h2>Why kind over minikube?</h2>
+    <p><code>kind</code> (Kubernetes IN Docker) is lighter, faster to create/destroy, and supports multi-node clusters trivially. A fresh cluster spins up in ~30 seconds. You can have multiple clusters simultaneously for different practice scenarios. <a href="https://kind.sigs.k8s.io/">kind documentation</a>.</p>
+
+    <h2>Steps</h2>
+
+    <div class="step">
+        <div class="step-number">Step 1 — Install prerequisites</div>
+        <p>If you don't have Docker Desktop yet, install it first:</p>
+        <pre><code>brew install --cask docker</code></pre>
+        <p>Open Docker Desktop and let it start. Then install kind and kubectl:</p>
+        <pre><code>brew install kind kubectl</code></pre>
+    </div>
+
+    <div class="step">
+        <div class="step-number">Step 2 — Create your first cluster</div>
+        <pre><code>kind create cluster --name ckad-practice</code></pre>
+        <p>This creates a single-node cluster. It takes about 30 seconds.</p>
+    </div>
+
+    <div class="step">
+        <div class="step-number">Step 3 — Verify it works</div>
+        <pre><code># Check kubectl is connected
+kubectl cluster-info
+
+# You should see something like:
+# Kubernetes control plane is running at https://127.0.0.1:PORT
+
+# List nodes
+kubectl get nodes
+
+# You should see one node with STATUS: Ready</code></pre>
+    </div>
+
+    <div class="checkpoint">
+        <p>If <code>kubectl get nodes</code> shows a node with status <code>Ready</code>, your environment is working. Everything from here on is optimization.</p>
+    </div>
+
+    <div class="step">
+        <div class="step-number">Step 4 — Set up exam-style aliases</div>
+        <p>The exam environment pre-configures some aliases. Set these up now so they become muscle memory:</p>
+        <pre><code># Add to your ~/.zshrc (or ~/.bashrc)
+alias k='kubectl'
+alias kn='kubectl config set-context --current --namespace'
+
+# Autocomplete for the alias
+source &lt;(kubectl completion zsh)
+complete -o default -F __start_kubectl k
+
+# Apply changes
+source ~/.zshrc</code></pre>
+    </div>
+
+    <div class="exam-tip">
+        <p>In the real exam, <code>kubectl</code> autocomplete and the alias <code>k=kubectl</code> are pre-configured. But you still need to be fast. Start using <code>k</code> instead of <code>kubectl</code> in all your practice from day one.</p>
+    </div>
+
+    <div class="step">
+        <div class="step-number">Step 5 — Test a quick workflow</div>
+        <p>Let's verify the full loop works — create something, inspect it, delete it:</p>
+        <pre><code># Create a pod imperatively (exam-critical skill)
+k run nginx --image=nginx
+
+# Check it's running
+k get pods
+
+# Look at the YAML it generated
+k get pod nginx -o yaml
+
+# Delete it
+k delete pod nginx</code></pre>
+    </div>
+
+    <div class="checkpoint">
+        <p>If you successfully created and deleted a pod, your practice environment is fully operational. You're ready for lessons.</p>
+    </div>
+
+    <h2>Cluster lifecycle</h2>
+    <p>You'll use these commands regularly:</p>
+    <pre><code># Delete cluster when done for the day (optional — it's lightweight)
+kind delete cluster --name ckad-practice
+
+# Recreate fresh cluster anytime
+kind create cluster --name ckad-practice
+
+# List your clusters
+kind get clusters</code></pre>
+
+    <div class="why">
+        <p>Being able to destroy and recreate your cluster in seconds is a superpower. Made a mess? Broke something? Don't debug it — nuke it and start fresh. This is how you should practice for the exam too: each question gets a clean slate.</p>
+    </div>
+
+    <h2>What's next</h2>
+    <p>With your environment ready, the next lesson will cover <strong>Pods from first principles</strong> — the atomic unit of Kubernetes. You'll learn what a Pod actually is, write Pod manifests from scratch, and understand the fields you'll need for the exam.</p>
+
+    <p>See also: <a href="../reference/ckad-exam-domains.html">CKAD Exam Domains Reference</a></p>
+
+    <div class="nav">
+        <p>Questions about anything in this lesson? Ask your agent — I'm here to help clarify.</p>
+        <p>Next: <a href="0002-pods-from-first-principles.html">Lesson 002 — Pods from First Principles</a></p>
+    </div>
+</body>
+</html>
