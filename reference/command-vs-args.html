@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reference — command vs args</title>
+    <style>
+        :root {
+            --bg: #fafafa; --text: #1a1a1a; --accent: #326ce5;
+            --code-bg: #f0f0f0; --border: #ddd; --warning: #ef6c00; --success: #2e7d32;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6; color: var(--text); background: var(--bg);
+            max-width: 760px; margin: 0 auto; padding: 2rem 1.5rem;
+        }
+        h1 { font-size: 1.7rem; color: var(--accent); margin-bottom: 0.25rem; }
+        h2 { font-size: 1.2rem; margin-top: 1.75rem; margin-bottom: 0.6rem;
+             border-bottom: 2px solid var(--accent); padding-bottom: 0.2rem; }
+        p { margin-bottom: 0.75rem; }
+        .meta { color: #666; font-size: 0.9rem; margin-bottom: 1.5rem; }
+        code { background: var(--code-bg); padding: 0.12em 0.4em; border-radius: 3px;
+               font-size: 0.9em; font-family: 'SF Mono', 'Fira Code', monospace; }
+        pre { background: #1e1e1e; color: #d4d4d4; padding: 0.9rem 1.1rem;
+              border-radius: 6px; overflow-x: auto; margin-bottom: 1rem;
+              font-size: 0.85rem; line-height: 1.5; }
+        pre code { background: none; padding: 0; color: inherit; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; font-size: 0.92rem; }
+        th, td { text-align: left; padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--border); }
+        th { background: #eef3fd; color: var(--accent); }
+        td code { font-size: 0.85em; }
+        .yes { color: var(--success); font-weight: 700; }
+        .no { color: #999; font-weight: 700; }
+        .rule { background: #fff3e0; border: 1px solid #ffcc02; border-radius: 6px;
+                padding: 0.9rem 1.1rem; margin: 1rem 0; }
+        .rule::before { content: "Decision rule"; display: block; font-weight: 700;
+                        color: var(--warning); font-size: 0.85rem; margin-bottom: 0.3rem; }
+        .trap { background: #fdecea; border: 1px solid #f5b7b1; border-radius: 6px;
+                padding: 0.9rem 1.1rem; margin: 1rem 0; }
+        .trap::before { content: "⚠ Trap"; display: block; font-weight: 700;
+                        color: #c0392b; font-size: 0.85rem; margin-bottom: 0.3rem; }
+        ul { margin: 0 0 1rem 1.3rem; }
+        li { margin-bottom: 0.3rem; }
+        a { color: var(--accent); }
+        .nav { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
+        @media print { body { max-width: 100%; padding: 1rem; } pre { white-space: pre-wrap; } }
+    </style>
+</head>
+<body>
+    <h1>command vs args</h1>
+    <p class="meta">Reference card · Pod container entrypoint &amp; arguments</p>
+
+    <h2>The model</h2>
+    <p>Every image bakes in an <strong>ENTRYPOINT</strong> (the executable) and a
+    <strong>CMD</strong> (default arguments). In a Pod spec:</p>
+    <ul>
+        <li><code>command:</code> &nbsp;→&nbsp; overrides <strong>ENTRYPOINT</strong> (the executable)</li>
+        <li><code>args:</code> &nbsp;→&nbsp; overrides <strong>CMD</strong> (the arguments)</li>
+    </ul>
+    <p>The container runs <code>command + args</code> concatenated. <strong>No shell is
+    involved</strong> unless you explicitly add one (<code>sh -c</code>). A shell is just
+    another program (<code>/bin/sh</code>) — it is not automatic.</p>
+
+    <h2>When do you need <code>sh -c</code>?</h2>
+    <p>Only when the command uses <strong>shell syntax</strong>:</p>
+    <table>
+        <tr><th>Feature</th><th>Example</th><th>Needs <code>sh -c</code>?</th></tr>
+        <tr><td>Plain binary</td><td><code>sleep 3600</code></td><td class="no">No</td></tr>
+        <tr><td>Variable expansion</td><td><code>echo $GREETING</code></td><td class="yes">Yes</td></tr>
+        <tr><td>And / or / sequence</td><td><code>echo hi &amp;&amp; sleep 3600</code></td><td class="yes">Yes</td></tr>
+        <tr><td>Pipe</td><td><code>ps | grep nginx</code></td><td class="yes">Yes</td></tr>
+        <tr><td>Redirect</td><td><code>date &gt;&gt; /tmp/log</code></td><td class="yes">Yes</td></tr>
+        <tr><td>Glob</td><td><code>cat *.log</code></td><td class="yes">Yes</td></tr>
+    </table>
+
+    <div class="rule">
+        <p>Just a binary + arguments → run it directly.<br>
+        Anything with <code>$</code>, <code>&amp;&amp;</code>, <code>|</code>,
+        <code>&gt;</code>, <code>;</code>, or <code>*</code> → wrap in <code>sh -c</code>.</p>
+    </div>
+
+    <h2>The three forms</h2>
+    <pre><code># 1. Direct binary — no shell (Exercise 1: sleeper)
+command: ["sleep", "3600"]
+
+# 2. Rely on image entrypoint, override only args
+#    (what `kubectl run ... -- sleep 3600` generates)
+args: ["sleep", "3600"]
+
+# 3. Shell form — needed for $VAR, &amp;&amp;, pipes, redirects
+#    (Exercise 3: envpod). Whole line is ONE string.
+command: ["sh", "-c"]
+args: ["echo $GREETING &amp;&amp; sleep 3600"]</code></pre>
+
+    <div class="trap">
+        <p><strong>Literal vs expanded:</strong> <code>command: ["echo", "$GREETING"]</code>
+        prints the literal text <code>$GREETING</code> — only a shell expands <code>$</code>.</p>
+        <p><strong>One string, not words:</strong> in the <code>sh -c</code> form the entire
+        shell line must be a single <code>args</code> string. If you split it into words,
+        <code>sh -c</code> only runs the first word.</p>
+        <p><strong>command vs args alone:</strong> <code>args</code> alone works only if the
+        image has no ENTRYPOINT (true for busybox/alpine). <code>command</code> is the
+        bulletproof form for any image — it replaces the executable outright.</p>
+    </div>
+
+    <h2>Exam speed tip</h2>
+    <pre><code># Generate scaffold, then hand-edit command/args/env/resources
+k run sleeper --image=alpine:3.19 --dry-run=client -o yaml \
+    -- sleep 3600 > sleeper.yaml
+
+# Everything after `--` becomes the container args.</code></pre>
+
+    <div class="nav">
+        <p>See also:
+        <a href="../lessons/0002-pods-from-first-principles.html">Lesson 002 — Pods from First Principles</a> ·
+        <a href="ckad-exam-domains.html">CKAD Exam Domains</a></p>
+        <p>Questions on any of this? Ask your agent.</p>
+    </div>
+</body>
+</html>
