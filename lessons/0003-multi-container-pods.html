@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lesson 003 — Multi-Container Pods</title>
+    <style>
+        :root {
+            --bg: #fafafa; --text: #1a1a1a; --accent: #326ce5;
+            --code-bg: #f0f0f0; --border: #ddd; --success: #2e7d32; --warning: #ef6c00;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.7; color: var(--text); background: var(--bg);
+            max-width: 720px; margin: 0 auto; padding: 2rem 1.5rem;
+        }
+        h1 { font-size: 1.8rem; margin-bottom: 0.5rem; color: var(--accent); }
+        h2 { font-size: 1.3rem; margin-top: 2rem; margin-bottom: 0.75rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.25rem; }
+        h3 { font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        p { margin-bottom: 1rem; }
+        code { background: var(--code-bg); padding: 0.15em 0.4em; border-radius: 3px; font-size: 0.9em; font-family: 'SF Mono', 'Fira Code', monospace; }
+        pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem 1.25rem; border-radius: 6px; overflow-x: auto; margin-bottom: 1rem; font-size: 0.85rem; line-height: 1.5; }
+        pre code { background: none; padding: 0; color: inherit; }
+        .meta { color: #666; font-size: 0.9rem; margin-bottom: 2rem; }
+        .checkpoint { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 6px; padding: 1rem 1.25rem; margin: 1rem 0; }
+        .checkpoint::before { content: "✓ Checkpoint"; display: block; font-weight: 700; color: var(--success); margin-bottom: 0.25rem; font-size: 0.85rem; }
+        .exam-tip { background: #fff3e0; border: 1px solid #ffcc02; border-radius: 6px; padding: 1rem 1.25rem; margin: 1rem 0; }
+        .exam-tip::before { content: "Exam Tip"; display: block; font-weight: 700; color: var(--warning); margin-bottom: 0.25rem; font-size: 0.85rem; }
+        .why { background: #e3f2fd; border: 1px solid #90caf9; border-radius: 6px; padding: 1rem 1.25rem; margin: 1rem 0; }
+        .why::before { content: "Why this matters"; display: block; font-weight: 700; color: var(--accent); margin-bottom: 0.25rem; font-size: 0.85rem; }
+        .exercise { background: #f3e5f5; border: 1px solid #ce93d8; border-radius: 6px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+        .exercise::before { content: "Practice Exercise"; display: block; font-weight: 700; color: #7b1fa2; margin-bottom: 0.25rem; font-size: 0.85rem; }
+        .anatomy { background: white; border: 1px solid var(--border); border-radius: 6px; padding: 1rem 1.25rem; margin: 1rem 0; }
+        .field-name { color: #c586c0; font-weight: 600; }
+        .field-desc { color: #666; font-size: 0.9rem; }
+        .trap { background: #fdecea; border: 1px solid #f5b7b1; border-radius: 6px; padding: 1rem 1.25rem; margin: 1rem 0; }
+        .trap::before { content: "⚠ Trap"; display: block; font-weight: 700; color: #c0392b; margin-bottom: 0.25rem; font-size: 0.85rem; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; font-size: 0.92rem; }
+        th, td { text-align: left; padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+        th { background: #eef3fd; color: var(--accent); }
+        ul, ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+        li { margin-bottom: 0.35rem; }
+        a { color: var(--accent); }
+        details { margin-bottom: 1rem; }
+        details summary { cursor: pointer; font-weight: 600; color: var(--accent); padding: 0.5rem 0; }
+        .nav { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
+        @media print { body { max-width: 100%; padding: 1rem; } pre { white-space: pre-wrap; } }
+    </style>
+</head>
+<body>
+    <h1>Multi-Container Pods</h1>
+    <p class="meta">Lesson 003 · Estimated time: 35 minutes · Domain: Application Design and Build (20%)</p>
+
+    <div class="why">
+        <p>Real applications rarely run as a single lonely container. A web server needs its config generated first; a log shipper needs to tail the app's logs; a proxy needs to sit in front. The CKAD exam tests whether you can wire multiple containers into <em>one</em> Pod and make them cooperate. The two mechanisms — <strong>shared volumes</strong> and <strong>localhost networking</strong> — are the whole game.</p>
+    </div>
+
+    <h2>The one idea: containers in a Pod cooperate two ways</h2>
+    <p>Back in <a href="0002-pods-from-first-principles.html">Lesson 002</a> you learned a Pod is "one or more containers that share a network namespace and storage." Now we use the "one or more" part. Containers in the same Pod cooperate through exactly two channels:</p>
+    <ul>
+        <li><strong>Shared network</strong> — they reach each other on <code>localhost</code> (same IP, different ports).</li>
+        <li><strong>Shared storage</strong> — they mount the <em>same volume</em> and read/write the same files.</li>
+    </ul>
+    <p>They do <strong>not</strong> share a filesystem by default. Each container has its own filesystem from its own image. Sharing happens only through a volume you explicitly mount into both.</p>
+
+    <h2>The shared volume: <code>emptyDir</code></h2>
+    <p>The simplest shared volume is <code>emptyDir</code> — an empty directory created when the Pod starts, living as long as the Pod lives, and mountable into multiple containers. It is your default tool for container-to-container file sharing.<sup><a href="https://kubernetes.io/docs/concepts/storage/volumes/#emptydir">[docs]</a></sup></p>
+
+    <pre><code>apiVersion: v1
+kind: Pod
+metadata:
+  name: sharing
+spec:
+  volumes:                      # 1. declare the volume on the Pod
+  - name: shared
+    emptyDir: {}
+  containers:
+  - name: writer
+    image: busybox:1.36
+    command: ["sh", "-c", "echo hello > /data/msg.txt && sleep 3600"]
+    volumeMounts:               # 2. mount it into each container
+    - name: shared
+      mountPath: /data
+  - name: reader
+    image: busybox:1.36
+    command: ["sh", "-c", "sleep 5 && cat /data/msg.txt && sleep 3600"]
+    volumeMounts:
+    - name: shared
+      mountPath: /data</code></pre>
+
+    <div class="anatomy">
+        <p><span class="field-name">spec.volumes[]</span><br>
+        <span class="field-desc">Volumes are declared once at the Pod level. <code>emptyDir: {}</code> means "give me a scratch directory."</span></p>
+        <p><span class="field-name">spec.containers[].volumeMounts[]</span><br>
+        <span class="field-desc">Each container that wants the volume mounts it by <code>name</code>, choosing its own <code>mountPath</code>. The paths don't have to match — both point at the same underlying storage.</span></p>
+    </div>
+
+    <div class="exam-tip">
+        <p>The <code>name</code> in <code>volumeMounts</code> must exactly match a <code>name</code> in <code>spec.volumes</code>. A typo here is the #1 reason a multi-container Pod silently fails to share. Always eyeball that the two names line up.</p>
+    </div>
+
+    <h2>Init containers — run first, then get out of the way</h2>
+    <p>Sometimes you need setup work done <em>before</em> the app starts: generate a config, wait for a dependency, clone a repo. That's an <strong>init container</strong>. It runs to completion <em>before</em> any app container starts, and they run <strong>sequentially</strong> in order.<sup><a href="https://kubernetes.io/docs/concepts/workloads/pods/init-containers/">[docs]</a></sup></p>
+
+    <pre><code>apiVersion: v1
+kind: Pod
+metadata:
+  name: init-demo
+spec:
+  volumes:
+  - name: workdir
+    emptyDir: {}
+  initContainers:               # runs first, to completion
+  - name: setup
+    image: busybox:1.36
+    command: ["sh", "-c", "echo 'config ready' > /work/config.txt"]
+    volumeMounts:
+    - name: workdir
+      mountPath: /work
+  containers:                   # starts only after initContainers succeed
+  - name: app
+    image: busybox:1.36
+    command: ["sh", "-c", "cat /work/config.txt && sleep 3600"]
+    volumeMounts:
+    - name: workdir
+      mountPath: /work</code></pre>
+
+    <div class="anatomy">
+        <p><span class="field-name">spec.initContainers[]</span><br>
+        <span class="field-desc">Same shape as a regular container. The difference is lifecycle: each one must exit <strong>0</strong> before the next runs, and all must finish before <code>spec.containers</code> start.</span></p>
+    </div>
+
+    <p>The classic handoff: the init container <em>writes</em> a file into a shared <code>emptyDir</code>, and the app container <em>reads</em> it. The volume outlives the init container, so the data is still there.</p>
+
+    <div class="trap">
+        <p>If an init container keeps running (e.g. you add <code>sleep 3600</code>), the app container <strong>never starts</strong> — init containers must <em>finish</em>. The pod sits in status <code>Init:0/1</code>. A long-running helper is a <em>sidecar</em>, not an init container (next section).</p>
+    </div>
+
+    <h2>Sidecars — the long-running helper</h2>
+    <p>A <strong>sidecar</strong> runs <em>alongside</em> the app for the whole Pod lifetime — a log shipper, a proxy, a metrics agent. There are two ways to express this, and you should know both:</p>
+
+    <h3>1. The classic way — a second app container</h3>
+    <p>Just add a second entry under <code>spec.containers</code>. Both run concurrently for the life of the Pod. This is what most exam questions mean by "sidecar," and it's the form you'll write most often:</p>
+    <pre><code>spec:
+  containers:
+  - name: app          # main
+    image: nginx:1.27
+  - name: log-sidecar  # helper, runs concurrently
+    image: busybox:1.36
+    command: ["sh", "-c", "tail -F /var/log/app/access.log"]</code></pre>
+
+    <h3>2. The native way — an init container with <code>restartPolicy: Always</code></h3>
+    <p>Since Kubernetes <strong>v1.29</strong> (stable), a "native sidecar" is an entry under <code>initContainers</code> that has <code>restartPolicy: Always</code>. This makes it start early (in init order), keep running, and shut down <em>after</em> the main container on termination.<sup><a href="https://kubernetes.io/docs/concepts/workloads/pods/sidecar-containers/">[docs]</a></sup></p>
+    <pre><code>spec:
+  initContainers:
+  - name: log-sidecar
+    image: busybox:1.36
+    restartPolicy: Always       # ← this turns an init container into a sidecar
+    command: ["sh", "-c", "tail -F /var/log/app/access.log"]</code></pre>
+
+    <div class="exam-tip">
+        <p>If a question just says "add a sidecar that does X" with no ordering/lifecycle requirement, the <strong>classic second-container</strong> form is fastest and always correct. Reach for the native <code>initContainers</code> + <code>restartPolicy: Always</code> form when the question specifically needs the helper <em>ready before</em> the main app, or <em>alive until after</em> it stops.</p>
+    </div>
+
+    <h2>Three patterns, one table</h2>
+    <table>
+        <tr><th>Pattern</th><th>Where it goes</th><th>Lifecycle</th></tr>
+        <tr><td>Init container</td><td><code>initContainers</code></td><td>Runs to completion, sequentially, <em>before</em> app containers</td></tr>
+        <tr><td>Classic sidecar</td><td><code>containers</code> (2nd entry)</td><td>Runs concurrently with the app for the Pod's life</td></tr>
+        <tr><td>Native sidecar</td><td><code>initContainers</code> + <code>restartPolicy: Always</code></td><td>Starts in init order, runs the whole Pod life, stops last</td></tr>
+    </table>
+
+    <h2>Hands-on practice</h2>
+    <p>Cluster running? <code>k get nodes</code> should show Ready. If not: <code>kind create cluster --name ckad-practice</code>.</p>
+
+    <div class="exercise">
+        <p><strong>Exercise 1 — shared volume.</strong> Write a Pod named <code>combo</code> with two <code>busybox:1.36</code> containers sharing an <code>emptyDir</code> mounted at <code>/data</code>:</p>
+        <ul>
+            <li><code>producer</code> — writes the current date into <code>/data/now.txt</code> every 2 seconds, forever.</li>
+            <li><code>consumer</code> — tails <code>/data/now.txt</code>.</li>
+        </ul>
+        <p>Apply it, then verify the consumer sees the producer's writes:</p>
+        <pre><code>k logs combo -c consumer</code></pre>
+        <details>
+            <summary>Solution</summary>
+            <pre><code>cat &lt;&lt;EOF | k apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: combo
+spec:
+  volumes:
+  - name: shared
+    emptyDir: {}
+  containers:
+  - name: producer
+    image: busybox:1.36
+    command: ["sh", "-c", "while true; do date > /data/now.txt; sleep 2; done"]
+    volumeMounts:
+    - name: shared
+      mountPath: /data
+  - name: consumer
+    image: busybox:1.36
+    command: ["sh", "-c", "tail -F /data/now.txt"]
+    volumeMounts:
+    - name: shared
+      mountPath: /data
+EOF</code></pre>
+            <p>Note <code>k logs</code> needs <code>-c &lt;container&gt;</code> when a Pod has more than one container — otherwise it asks you which one.</p>
+        </details>
+    </div>
+
+    <div class="exercise">
+        <p><strong>Exercise 2 — init container handoff.</strong> Write a Pod named <code>initapp</code> where:</p>
+        <ul>
+            <li>an init container <code>seed</code> (<code>busybox:1.36</code>) writes <code>"seeded by init"</code> into <code>/work/data.txt</code>;</li>
+            <li>the main container <code>app</code> (<code>busybox:1.36</code>) prints that file and then sleeps 3600.</li>
+        </ul>
+        <p>Verify the handoff worked:</p>
+        <pre><code>k logs initapp           # should print: seeded by init
+k get pod initapp        # READY 1/1, STATUS Running</code></pre>
+        <details>
+            <summary>Hint</summary>
+            <p>Both the init container and the app container must mount the <em>same</em> volume name. The init container's command must <strong>exit</strong> — no <code>sleep</code> in it.</p>
+        </details>
+        <details>
+            <summary>Solution</summary>
+            <pre><code>cat &lt;&lt;EOF | k apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: initapp
+spec:
+  volumes:
+  - name: workdir
+    emptyDir: {}
+  initContainers:
+  - name: seed
+    image: busybox:1.36
+    command: ["sh", "-c", "echo 'seeded by init' > /work/data.txt"]
+    volumeMounts:
+    - name: workdir
+      mountPath: /work
+  containers:
+  - name: app
+    image: busybox:1.36
+    command: ["sh", "-c", "cat /work/data.txt && sleep 3600"]
+    volumeMounts:
+    - name: workdir
+      mountPath: /work
+EOF</code></pre>
+        </details>
+    </div>
+
+    <div class="exercise">
+        <p><strong>Exercise 3 — diagnose the trap (no writing).</strong> Apply this Pod, then explain what you observe and <em>why</em>:</p>
+        <pre><code>cat &lt;&lt;EOF | k apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: stuck
+spec:
+  initContainers:
+  - name: never-ends
+    image: busybox:1.36
+    command: ["sh", "-c", "sleep 3600"]
+  containers:
+  - name: app
+    image: busybox:1.36
+    command: ["sh", "-c", "sleep 3600"]
+EOF
+k get pod stuck</code></pre>
+        <p>What STATUS does <code>stuck</code> show, and why won't <code>app</code> start? How would you fix it if <code>never-ends</code> was <em>supposed</em> to keep running? (Answer to your agent — this one's a discussion.) Clean up with <code>k delete pod stuck combo initapp</code> when done.</p>
+    </div>
+
+    <div class="checkpoint">
+        <p>You can now build multi-container Pods three ways: a shared <code>emptyDir</code> for file handoff, an <code>initContainer</code> for sequential setup, and a sidecar (classic or native) for a long-running helper. You know the cooperation channels are <strong>localhost</strong> (network) and <strong>shared volumes</strong> (storage), and that volume <code>name</code> must match between <code>volumes</code> and <code>volumeMounts</code>.</p>
+    </div>
+
+    <h2>Key mental models</h2>
+    <ul>
+        <li><strong>No sharing by default.</strong> Containers in a Pod share storage only through a volume mounted into both; they share network via <code>localhost</code>.</li>
+        <li><strong>Init = finishes; sidecar = keeps running.</strong> If a helper must exit before the app, it's an init container. If it lives alongside, it's a sidecar.</li>
+        <li><strong>The volume outlives the init container.</strong> That's how data written by init survives for the app to read.</li>
+        <li><strong>Name matching is everything.</strong> <code>volumeMounts[].name</code> must equal <code>volumes[].name</code>.</li>
+    </ul>
+
+    <h2>What's next</h2>
+    <p>You've now hand-built Pods with multiple containers and your first volumes. Lesson 004 goes deeper on <strong>configuration</strong> — ConfigMaps and Secrets — feeding data into containers as env vars and mounted files. That builds directly on the <code>env</code> field from Lesson 002 and the volume mounts you just learned.</p>
+
+    <p>See also: <a href="../reference/command-vs-args.html">Reference — command vs args</a> · <a href="../reference/ckad-exam-domains.html">CKAD Exam Domains</a> · <a href="0002-pods-from-first-principles.html">Lesson 002 — Pods</a></p>
+
+    <div class="nav">
+        <p>Stuck on an exercise, or want me to check your YAML? Ask your agent — that's what I'm here for.</p>
+        <p>Previous: <a href="0002-pods-from-first-principles.html">Lesson 002 — Pods from First Principles</a></p>
+    </div>
+</body>
+</html>
